@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>360 Video Viewer (Vite + A-Frame)</title>
+  <script type="module" src="src/main.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+    #videoControls {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 1000;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    #videoControls button,
+    #videoControls input {
+      margin-right: 10px;
+    }
+
+    #buttonBarLeft {
+      position: fixed;
+      bottom: 50px;
+      left: 50px;
+    }
+
+    #buttonBarRight {
+      position: fixed;
+      bottom: 50px;
+      right: 50px;
+    }
+
+    #playBtn {
+      width: 60px;
+      height: 60px;
+      background: #F26964;
+      border: 3px solid #fff;
+      border-radius: 70px;
+      -moz-border-radius: 70px;
+      -webkit-border-radius: 70px;
+      color: #fff;
+      line-height: 60px;
+      font-size: 22px;
+      font-weight: bold;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    #play:hover {
+      opacity: 0.8;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="videoControls">
+    <input type="file" id="videoFile" accept="video/*">
+  </div>
+
+  <div id="buttonBarLeft">
+    <button id="controlResetBtn">視点リセット</button>
+  </div>
+
+  <div id="buttonBarRight">
+    <div id="playBtn">||</div>
+  </div>
+
+</body>
+
+</html>
