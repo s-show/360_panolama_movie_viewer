@@ -2,6 +2,10 @@ import './style.scss'
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
+// 再生アイコンと一時停止アイコンのSVG文字列
+const playIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+const pauseIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+
 const SIGNATURES = {
   // 形式判定用ユーティリティ
   isImage: buf =>
@@ -44,6 +48,7 @@ function createTexture(source, mediaType) {
       video.currentTime = 0;
     })
     video.play();
+    document.getElementById('playPauseBtn').innerHTML = pauseIcon;
     document.querySelector('.controls-container').classList.remove('hidden');
     texture = new THREE.VideoTexture(video);
     addVideoControls(video);
@@ -56,8 +61,8 @@ function createTexture(source, mediaType) {
 }
 
 function addVideoControls(video) {
-  const playBtn = document.getElementById('playPauseBtn');
-  playBtn.addEventListener('click', () => togglePlay(video));
+  const playPauseBtn = document.getElementById('playPauseBtn');
+  playPauseBtn.addEventListener('click', () => togglePlay(video));
   const rewindBtn = document.getElementById('rewindBtn');
   rewindBtn.addEventListener('click', () => adjustTime(video, -10));
   const forwardBtn = document.getElementById('fastForwardBtn');
@@ -65,16 +70,12 @@ function addVideoControls(video) {
 }
 
 function togglePlay(video) {
-  // 再生アイコンと一時停止アイコンのSVG文字列
-  const playIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
-  const pauseIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
-
   if (video.paused) {
     video.play();
-    playPauseBtn.innerHTML = playIcon;
+    playPauseBtn.innerHTML = pauseIcon;
   } else {
     video.pause();
-    playPauseBtn.innerHTML = pauseIcon;
+    playPauseBtn.innerHTML = playIcon;
   }
 }
 
@@ -86,22 +87,6 @@ function adjustTime(video, deltaTime) {
 Math.clamp = function(num, min, max) {
   return num <= min ? min : num >= max ? max : num
 };
-
-document.getElementById('fileSelector').addEventListener('change', async (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-  const fileType = await detectFileType(file);
-  if (fileType === 'unknown') {
-    alert('画像または動画ファイルを選択してください')
-    return;
-  }
-  const canvasDom = document.querySelector('canvas');
-  // 既存の canvas 要素を削除しないと2回目以降に読み込んだファイルが表示されない
-  if (canvasDom != null) {
-    canvasDom.parentNode.removeChild(canvasDom);
-  }
-  renderScene(file, fileType);
-});
 
 async function renderScene(file, fileType) {
   const scene = new THREE.Scene();
@@ -165,3 +150,18 @@ async function renderScene(file, fileType) {
   });
 }
 
+document.getElementById('fileSelector').addEventListener('change', async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const fileType = await detectFileType(file);
+  if (fileType === 'unknown') {
+    alert('画像または動画ファイルを選択してください')
+    return;
+  }
+  const canvasDom = document.querySelector('canvas');
+  // 既存の canvas 要素を削除しないと2回目以降に読み込んだファイルが表示されない
+  if (canvasDom != null) {
+    canvasDom.parentNode.removeChild(canvasDom);
+  }
+  renderScene(file, fileType);
+});
