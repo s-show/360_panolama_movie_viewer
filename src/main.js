@@ -1,4 +1,4 @@
-import './style.css'
+import './style.scss'
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
@@ -31,6 +31,7 @@ function createTexture(source, mediaType) {
   let texture;
   if (mediaType === 'image') {
     texture = new THREE.TextureLoader().load(URL.createObjectURL(source));
+    document.querySelector('.controls-container').classList.add('hidden');
   } else if (mediaType === 'video') {
     const videoUrl = URL.createObjectURL(source);
     const video = document.createElement("video");
@@ -39,11 +40,11 @@ function createTexture(source, mediaType) {
     video.loop = false;
     video.playsInline = true;
     video.muted = true;
-    video.addEventListener('ended', (event) => {
+    video.addEventListener('ended', () => {
       video.currentTime = 0;
-      document.getElementById('playBtnImg').src = "./src/assets/playCircleIcon.svg"
     })
     video.play();
+    document.querySelector('.controls-container').classList.remove('hidden');
     texture = new THREE.VideoTexture(video);
     addVideoControls(video);
   } else {
@@ -55,21 +56,25 @@ function createTexture(source, mediaType) {
 }
 
 function addVideoControls(video) {
-  const playBtn = document.getElementById('playBtn');
+  const playBtn = document.getElementById('playPauseBtn');
   playBtn.addEventListener('click', () => togglePlay(video));
   const rewindBtn = document.getElementById('rewindBtn');
   rewindBtn.addEventListener('click', () => adjustTime(video, -10));
-  const forwardBtn = document.getElementById('forwardBtn');
+  const forwardBtn = document.getElementById('fastForwardBtn');
   forwardBtn.addEventListener('click', () => adjustTime(video, 10));
 }
 
 function togglePlay(video) {
+  // 再生アイコンと一時停止アイコンのSVG文字列
+  const playIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  const pauseIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+
   if (video.paused) {
     video.play();
-    document.getElementById('playBtnImg').src = "./src/assets/pauseCircleIcon.svg"
+    playPauseBtn.innerHTML = playIcon;
   } else {
     video.pause();
-    document.getElementById('playBtnImg').src = "./src/assets/playCircleIcon.svg"
+    playPauseBtn.innerHTML = pauseIcon;
   }
 }
 
