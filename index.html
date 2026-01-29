@@ -13,8 +13,38 @@
     <input type="file" id="fileSelector" accept="video/*,image/*">
   </div>
 
+  <div id="textToolControls">
+    <input type="text" id="labelTextInput" placeholder="ラベルを入力">
+    <button id="toggleAddTextBtn">テキスト: OFF</button>
+    <button id="toggleAddArrowBtn">矢印: OFF</button>
+    <button id="clearTextBtn">全消去</button>
+  </div>
+
+  <div id="propertyPanel" class="hidden">
+    <h3>編集プロパティ</h3>
+    <div id="transformModeControls">
+      <button id="modeTranslateBtn" class="active">移動</button>
+      <button id="modeRotateBtn">回転</button>
+    </div>
+    
+    <div id="textProperties" class="hidden">
+      <label id="editTextLabel">テキスト: <input type="text" id="editTextInput"></label>
+      <label id="editTextSizeLabel">サイズ: <input type="range" id="editTextSize" min="0.5" max="5.0" step="0.1" value="1.0"></label>
+    </div>
+
+    <div class="actions">
+      <button id="deleteObjectBtn" class="danger">削除</button>
+      <button id="closePanelBtn">閉じる</button>
+    </div>
+  </div>
+
   <div id="buttonBarLeft">
     <button id="controlResetBtn">視点初期化</button>
+    <select id="saveFormatSelect">
+      <option value="png">PNG</option>
+      <option value="jpeg">JPEG</option>
+    </select>
+    <button id="saveEquirectBtn">画像保存</button>
   </div>
 
   <div class="controls-container hidden">
