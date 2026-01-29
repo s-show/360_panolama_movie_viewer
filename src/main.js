@@ -10,7 +10,7 @@ const pauseIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" f
 // 編集モードの状態管理
 let currentMode = 'none'; // 'none', 'text', 'arrow'
 let currentScene = null;
-let drawnObjects = []; 
+let drawnObjects = [];
 
 // 選択・編集用
 let transformControl = null;
@@ -41,79 +41,79 @@ function createTextSprite(text, scale = 1.0) {
   const context = canvas.getContext('2d');
   const fontSize = 64;
   context.font = `bold ${fontSize}px Arial, sans-serif`;
-  
+
   const metrics = context.measureText(text);
   const textWidth = metrics.width;
-  
+
   canvas.width = textWidth + 40;
   canvas.height = fontSize + 40;
-  
+
   context.font = `bold ${fontSize}px Arial, sans-serif`;
   context.textAlign = 'center';
   context.textBaseline = 'middle';
-  
+
   context.lineWidth = 4;
   context.strokeStyle = 'rgba(0, 0, 0, 0.8)';
   context.strokeText(text, canvas.width / 2, canvas.height / 2);
-  
+
   context.fillStyle = 'white';
   context.fillText(text, canvas.width / 2, canvas.height / 2);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  
-  const material = new THREE.SpriteMaterial({ 
+
+  const material = new THREE.SpriteMaterial({
     map: texture,
     depthTest: false,
     depthWrite: false
   });
-  
+
   const sprite = new THREE.Sprite(material);
-  sprite.userData = { 
-    type: 'text', 
-    text: text, 
-    baseScale: new THREE.Vector2(canvas.width * 0.02, canvas.height * 0.02) 
+  sprite.userData = {
+    type: 'text',
+    text: text,
+    baseScale: new THREE.Vector2(canvas.width * 0.02, canvas.height * 0.02)
   };
-  
+
   sprite.scale.copy(sprite.userData.baseScale).multiplyScalar(scale);
-  
+
   return sprite;
 }
 
 function updateTextSpriteContent(sprite, newText) {
   if (sprite.userData.type !== 'text') return;
-  
+
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   const fontSize = 64;
   context.font = `bold ${fontSize}px Arial, sans-serif`;
-  
+
   const metrics = context.measureText(newText);
   const textWidth = metrics.width;
-  
+
   canvas.width = textWidth + 40;
   canvas.height = fontSize + 40;
-  
+
   context.font = `bold ${fontSize}px Arial, sans-serif`;
   context.textAlign = 'center';
   context.textBaseline = 'middle';
-  
+
   context.lineWidth = 4;
   context.strokeStyle = 'rgba(0, 0, 0, 0.8)';
   context.strokeText(newText, canvas.width / 2, canvas.height / 2);
-  
+
   context.fillStyle = 'white';
   context.fillText(newText, canvas.width / 2, canvas.height / 2);
 
   const newTexture = new THREE.CanvasTexture(canvas);
   newTexture.colorSpace = THREE.SRGBColorSpace;
-  
+
   sprite.material.map.dispose();
   sprite.material.map = newTexture;
-  
+
   sprite.userData.text = newText;
   sprite.userData.baseScale.set(canvas.width * 0.02, canvas.height * 0.02);
-  
+
   const currentSizeSlider = document.getElementById('editTextSize');
   const userScale = parseFloat(currentSizeSlider.value) || 1.0;
   sprite.scale.copy(sprite.userData.baseScale).multiplyScalar(userScale);
@@ -123,19 +123,19 @@ function updateTextSpriteContent(sprite, newText) {
 function createArrowMesh(start, end) {
   const direction = new THREE.Vector3().subVectors(end, start);
   const length = direction.length();
-  
-  if (length < 0.1) return null;
 
-  const hex = 0xff0000; 
-  const headLength = length * 0.2; 
-  const headWidth = Math.max(0.2, length * 0.05); 
+  if (length < 0.1) return null;
+ 
+  const hex = 0xff0000;
+  const headLength = length * 0.2;
+  const headWidth = Math.max(0.2, length * 0.05);
   const shaftWidth = headWidth * 0.4;
 
   const shaftLength = length - headLength;
   const shaftGeometry = new THREE.CylinderGeometry(shaftWidth, shaftWidth, shaftLength, 12, 1);
   const shaftMaterial = new THREE.MeshBasicMaterial({ color: hex });
   const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
-  shaft.position.y = shaftLength / 2; 
+  shaft.position.y = shaftLength / 2;
 
   const headGeometry = new THREE.ConeGeometry(headWidth, headLength, 12);
   const headMaterial = new THREE.MeshBasicMaterial({ color: hex });
@@ -148,7 +148,7 @@ function createArrowMesh(start, end) {
   arrowGroup.userData = { type: 'arrow' };
 
   arrowGroup.position.copy(start);
-  
+
   const axis = new THREE.Vector3(0, 1, 0);
   const quaternion = new THREE.Quaternion().setFromUnitVectors(axis, direction.clone().normalize());
   arrowGroup.setRotationFromQuaternion(quaternion);
@@ -176,7 +176,7 @@ const modeRotateBtn = document.getElementById('modeRotateBtn');
 
 function setMode(mode) {
   currentMode = mode;
-  
+
   if (toggleTextBtn) {
     toggleTextBtn.textContent = (mode === 'text') ? 'テキスト: ON' : 'テキスト: OFF';
     toggleTextBtn.classList.toggle('active', mode === 'text');
@@ -193,24 +193,24 @@ function setMode(mode) {
   } else {
     document.body.style.cursor = 'default';
   }
-  
+
   if (mode !== 'none') {
     deselectObject();
   }
-  
+
   arrowStartPoint = null;
 }
 
 function selectObject(obj) {
   if (selectedObject === obj) return;
   selectedObject = obj;
-  
+
   if (transformControl) {
     transformControl.attach(obj);
   }
-  
+
   propertyPanel.classList.remove('hidden');
-  
+
   if (obj.userData.type === 'text') {
     textProperties.classList.remove('hidden');
     editTextLabel.classList.remove('hidden');
@@ -219,7 +219,7 @@ function selectObject(obj) {
     editTextSize.classList.remove('hidden')
     modeRotateBtn.classList.add('hidden');
     editTextInput.value = obj.userData.text;
-    
+
     const currentScale = obj.scale.x / obj.userData.baseScale.x;
     editTextSize.value = currentScale.toFixed(1);
   } else {
@@ -250,9 +250,9 @@ if (deleteBtn) {
     if (selectedObject && currentScene) {
       currentScene.remove(selectedObject);
       drawnObjects = drawnObjects.filter(o => o !== selectedObject);
-      
+
       if (selectedObject.material && selectedObject.material.map) selectedObject.material.map.dispose();
-      
+
       deselectObject();
     }
   });
@@ -493,9 +493,9 @@ async function renderScene(file, fileType) {
   const scene = new THREE.Scene();
   currentScene = scene;
   drawnObjects = [];
-  setMode('none'); 
-  deselectObject(); 
-  
+  setMode('none');
+  deselectObject();
+
   // Cleanup previous controls if needed
   if (transformControl) {
     transformControl.dispose();
@@ -545,12 +545,12 @@ async function renderScene(file, fileType) {
   // Transform Controls Setup
   // -------------------------------------------------------
   transformControl = new TransformControls(camera, renderer.domElement);
-  
-  transformControl.addEventListener('dragging-changed', function (event) {
+
+  transformControl.addEventListener('dragging-changed', function(event) {
     controls.enabled = !event.value;
-    isDraggingGizmo = event.value; 
+    isDraggingGizmo = event.value;
   });
-  
+
   scene.add(transformControl.getHelper());
 
   const raycaster = new THREE.Raycaster();
@@ -564,18 +564,18 @@ async function renderScene(file, fileType) {
     const intersects = raycaster.intersectObject(sphere);
     return intersects.length > 0 ? intersects[0].point : null;
   }
-  
+
   function checkIntersection(event) {
     const rect = element.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
-    
+
     const intersects = raycaster.intersectObjects(drawnObjects, true);
-    
+
     if (intersects.length > 0) {
       let target = intersects[0].object;
-      while(target.parent && target.parent !== scene) {
+      while (target.parent && target.parent !== scene) {
         target = target.parent;
       }
       return target;
@@ -586,28 +586,68 @@ async function renderScene(file, fileType) {
   // -------------------------------------------------------
   // Input Handling (Click & Drag)
   // -------------------------------------------------------
-  
+
   let mouseDownPos = new THREE.Vector2();
 
   element.addEventListener('mousedown', (event) => {
     mouseDownPos.set(event.clientX, event.clientY);
-    
+
     if (isDraggingGizmo) return;
 
     if (currentMode === 'none') return;
-    
-    controls.enabled = false; 
+
+    controls.enabled = false;
 
     const point = getIntersectPoint(event);
     if (!point) return;
 
     if (currentMode === 'arrow') {
       arrowStartPoint = point.clone();
+
+      // Create arrow preview
+      arrowPreview = new THREE.ArrowHelper(
+        new THREE.Vector3(0, 1, 0),
+        arrowStartPoint,
+        0.1,
+        0xff0000,
+        0.02,
+        0.02
+      );
+      arrowPreview.visible = false;
+      scene.add(arrowPreview);
     }
+  });
+
+  let arrowPreview = null;
+
+  element.addEventListener('mousemove', (event) => {
+    if (currentMode !== 'arrow' || !arrowStartPoint || !arrowPreview) return;
+
+    const point = getIntersectPoint(event);
+    if (!point) return;
+
+    const direction = new THREE.Vector3().subVectors(point, arrowStartPoint);
+    const length = direction.length();
+    if (length < 0.1) {
+      arrowPreview.visible = false;
+      return;
+    }
+
+    arrowPreview.visible = true;
+    arrowPreview.position.copy(arrowStartPoint);
+    arrowPreview.setDirection(direction.normalize());
+    arrowPreview.setLength(length, length * 0.2, Math.max(0.2, length * 0.05));
   });
 
   element.addEventListener('mouseup', (event) => {
     controls.enabled = true;
+
+    // Remove arrow preview
+    if (arrowPreview) {
+      scene.remove(arrowPreview);
+      arrowPreview.dispose();
+      arrowPreview = null;
+    }
 
     if (isDraggingGizmo) return;
 
@@ -616,7 +656,7 @@ async function renderScene(file, fileType) {
 
     // 1. 書き込みモード時の処理
     if (currentMode !== 'none') {
-      if (!isClick && currentMode !== 'arrow') return; 
+      if (!isClick && currentMode !== 'arrow') return;
 
       const point = getIntersectPoint(event);
       if (!point) return;
@@ -642,7 +682,7 @@ async function renderScene(file, fileType) {
       }
       return;
     }
-    
+
     // 2. 編集（選択）モード時の処理
     if (isClick) {
       const clickedObj = checkIntersection(event);
