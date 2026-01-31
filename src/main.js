@@ -218,6 +218,9 @@ function selectObject(obj) {
     editTextSizeLabel.classList.remove('hidden');
     editTextSize.classList.remove('hidden')
     modeRotateBtn.classList.add('hidden');
+    if (transformControl) transformControl.setMode('translate');
+    modeTranslateBtn.classList.add('active');
+    modeRotateBtn.classList.remove('active');
     editTextInput.value = obj.userData.text;
 
     const currentScale = obj.scale.x / obj.userData.baseScale.x;
