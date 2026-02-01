@@ -848,4 +848,5 @@ document.getElementById('fileSelector').addEventListener('change', async (event)
     canvasDom.parentNode.removeChild(canvasDom);
   }
   renderScene(file, fileType);
+  event.target.blur();
 });
