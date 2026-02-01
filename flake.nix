@@ -17,6 +17,9 @@
             nodejs_20
             nodePackages.pnpm
             monolith
+            emmet-ls
+            typescript-language-server
+            eslint_d
           ];
           shellHook = ''
             echo "Entering custom Nix shell..."
@@ -25,6 +28,3 @@
       }
     );
 }
-
-
-
