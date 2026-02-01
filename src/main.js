@@ -20,6 +20,12 @@ let isDraggingGizmo = false; // ギズモ操作中フラグ
 // 矢印描画用の一時変数
 let arrowStartPoint = null;
 
+// 現在再生中の動画要素
+let currentVideo = null;
+
+// renderScene内で登録するイベントリスナーを一括解除するためのAbortController
+let sceneAbortController = null;
+
 const SIGNATURES = {
   isImage: buf => SIGNATURES.isJPEG(buf) || SIGNATURES.isPNG(buf) || SIGNATURES.isGIF(buf) || SIGNATURES.isBMP(buf),
   isJPEG: buf => buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF,
@@ -36,74 +42,100 @@ const SIGNATURES = {
 // Helper Functions for 3D Objects
 // ---------------------------------------------------------
 
-function createTextSprite(text, scale = 1.0) {
+function createTextSprite(text, scale = 1.0, color = "#ffffff") {
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   const fontSize = 64;
+  const strokeWidth = 4;
+  const padding = 20;
+  const margin = strokeWidth / 2 + padding;
   context.font = `bold ${fontSize}px Arial, sans-serif`;
 
   const metrics = context.measureText(text);
-  const textWidth = metrics.width;
+  const bboxLeft = metrics.actualBoundingBoxLeft;
+  const bboxRight = metrics.actualBoundingBoxRight;
+  const bboxAscent = metrics.actualBoundingBoxAscent;
+  const bboxDescent = metrics.actualBoundingBoxDescent;
 
-  canvas.width = textWidth + 40;
-  canvas.height = fontSize + 40;
+  canvas.width = bboxLeft + bboxRight + margin * 2;
+  canvas.height = bboxAscent + bboxDescent + margin * 2;
 
   context.font = `bold ${fontSize}px Arial, sans-serif`;
-  context.textAlign = 'center';
-  context.textBaseline = 'middle';
+  context.textAlign = 'left';
+  context.textBaseline = 'alphabetic';
 
-  context.lineWidth = 4;
+  const drawX = margin + bboxLeft;
+  const drawY = margin + bboxAscent;
+
+  context.lineWidth = strokeWidth;
   context.strokeStyle = 'rgba(0, 0, 0, 0.8)';
-  context.strokeText(text, canvas.width / 2, canvas.height / 2);
+  context.strokeText(text, drawX, drawY);
 
-  context.fillStyle = 'white';
-  context.fillText(text, canvas.width / 2, canvas.height / 2);
+  context.fillStyle = color;
+  context.fillText(text, drawX, drawY);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
 
-  const material = new THREE.SpriteMaterial({
+  const material = new THREE.MeshBasicMaterial({
     map: texture,
+    transparent: true,
+    side: THREE.DoubleSide,
     depthTest: false,
     depthWrite: false
   });
 
-  const sprite = new THREE.Sprite(material);
-  sprite.userData = {
+  const geometry = new THREE.PlaneGeometry(1, 1);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 1;
+  mesh.userData = {
     type: 'text',
     text: text,
-    baseScale: new THREE.Vector2(canvas.width * 0.02, canvas.height * 0.02)
+    color: color,
+    baseScale: new THREE.Vector3(canvas.width * 0.02, canvas.height * 0.02, 1)
   };
 
-  sprite.scale.copy(sprite.userData.baseScale).multiplyScalar(scale);
+  mesh.scale.copy(mesh.userData.baseScale).multiplyScalar(scale);
 
-  return sprite;
+  return mesh;
 }
 
-function updateTextSpriteContent(sprite, newText) {
+function updateTextSpriteContent(sprite, newText, color) {
   if (sprite.userData.type !== 'text') return;
+
+  const fillColor = color || sprite.userData.color || "#ffffff";
 
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   const fontSize = 64;
+  const strokeWidth = 4;
+  const padding = 20;
+  const margin = strokeWidth / 2 + padding;
   context.font = `bold ${fontSize}px Arial, sans-serif`;
 
   const metrics = context.measureText(newText);
-  const textWidth = metrics.width;
+  const bboxLeft = metrics.actualBoundingBoxLeft;
+  const bboxRight = metrics.actualBoundingBoxRight;
+  const bboxAscent = metrics.actualBoundingBoxAscent;
+  const bboxDescent = metrics.actualBoundingBoxDescent;
 
-  canvas.width = textWidth + 40;
-  canvas.height = fontSize + 40;
+  canvas.width = bboxLeft + bboxRight + margin * 2;
+  canvas.height = bboxAscent + bboxDescent + margin * 2;
 
   context.font = `bold ${fontSize}px Arial, sans-serif`;
-  context.textAlign = 'center';
-  context.textBaseline = 'middle';
+  context.textAlign = 'left';
+  context.textBaseline = 'alphabetic';
 
-  context.lineWidth = 4;
+  const drawX = margin + bboxLeft;
+  const drawY = margin + bboxAscent;
+
+  context.lineWidth = strokeWidth;
   context.strokeStyle = 'rgba(0, 0, 0, 0.8)';
-  context.strokeText(newText, canvas.width / 2, canvas.height / 2);
+  context.strokeText(newText, drawX, drawY);
 
-  context.fillStyle = 'white';
-  context.fillText(newText, canvas.width / 2, canvas.height / 2);
+  context.fillStyle = fillColor;
+  context.fillText(newText, drawX, drawY);
 
   const newTexture = new THREE.CanvasTexture(canvas);
   newTexture.colorSpace = THREE.SRGBColorSpace;
@@ -112,7 +144,8 @@ function updateTextSpriteContent(sprite, newText) {
   sprite.material.map = newTexture;
 
   sprite.userData.text = newText;
-  sprite.userData.baseScale.set(canvas.width * 0.02, canvas.height * 0.02);
+  sprite.userData.color = fillColor;
+  sprite.userData.baseScale.set(canvas.width * 0.02, canvas.height * 0.02, 1);
 
   const currentSizeSlider = document.getElementById('editTextSize');
   const userScale = parseFloat(currentSizeSlider.value) || 1.0;
@@ -120,13 +153,13 @@ function updateTextSpriteContent(sprite, newText) {
 }
 
 
-function createArrowMesh(start, end) {
+function createArrowMesh(start, end, color = "#ff0000") {
   const direction = new THREE.Vector3().subVectors(end, start);
   const length = direction.length();
 
   if (length < 0.1) return null;
- 
-  const hex = 0xff0000;
+
+  const hex = new THREE.Color(color);
   const headLength = length * 0.2;
   const headWidth = Math.max(0.2, length * 0.05);
   const shaftWidth = headWidth * 0.4;
@@ -145,7 +178,10 @@ function createArrowMesh(start, end) {
   const arrowGroup = new THREE.Group();
   arrowGroup.add(shaft);
   arrowGroup.add(head);
-  arrowGroup.userData = { type: 'arrow' };
+  arrowGroup.frustumCulled = false;
+  shaft.frustumCulled = false;
+  head.frustumCulled = false;
+  arrowGroup.userData = { type: 'arrow', color: color };
 
   arrowGroup.position.copy(start);
 
@@ -164,11 +200,17 @@ const toggleTextBtn = document.getElementById('toggleAddTextBtn');
 const toggleArrowBtn = document.getElementById('toggleAddArrowBtn');
 
 const propertyPanel = document.getElementById('propertyPanel');
+const textToolControls = document.getElementById('textToolControls');
 const textProperties = document.getElementById('textProperties');
 const editTextInput = document.getElementById('editTextInput');
 const editTextLabel = document.getElementById('editTextLabel');
 const editTextSizeLabel = document.getElementById('editTextSizeLabel');
 const editTextSize = document.getElementById('editTextSize');
+const editColorPicker = document.getElementById('editColorPicker');
+const editColorLabel = document.getElementById('editColorLabel');
+const textColorPicker = document.getElementById('textColorPicker');
+const arrowColorPicker = document.getElementById('arrowColorPicker');
+const saveImageDiv = document.getElementById('saveImageDiv');
 const deleteBtn = document.getElementById('deleteObjectBtn');
 const closePanelBtn = document.getElementById('closePanelBtn');
 const modeTranslateBtn = document.getElementById('modeTranslateBtn');
@@ -211,12 +253,16 @@ function selectObject(obj) {
 
   propertyPanel.classList.remove('hidden');
 
+  // Show color picker for all object types
+  editColorLabel.classList.remove('hidden');
+  editColorPicker.value = obj.userData.color || "#ffffff";
+
   if (obj.userData.type === 'text') {
     textProperties.classList.remove('hidden');
     editTextLabel.classList.remove('hidden');
     editTextInput.classList.remove('hidden');
     editTextSizeLabel.classList.remove('hidden');
-    editTextSize.classList.remove('hidden')
+    editTextSize.classList.remove('hidden');
     modeRotateBtn.classList.add('hidden');
     if (transformControl) transformControl.setMode('translate');
     modeTranslateBtn.classList.add('active');
@@ -230,7 +276,7 @@ function selectObject(obj) {
     editTextLabel.classList.add('hidden');
     editTextInput.classList.add('hidden');
     editTextSizeLabel.classList.add('hidden');
-    editTextSize.classList.add('hidden')
+    editTextSize.classList.add('hidden');
     modeRotateBtn.classList.remove('hidden');
   }
 }
@@ -245,6 +291,12 @@ function deselectObject() {
 
 if (toggleTextBtn) toggleTextBtn.addEventListener('click', () => setMode(currentMode === 'text' ? 'none' : 'text'));
 if (toggleArrowBtn) toggleArrowBtn.addEventListener('click', () => setMode(currentMode === 'arrow' ? 'none' : 'arrow'));
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && currentMode !== 'none') {
+    setMode('none');
+  }
+});
 
 if (closePanelBtn) closePanelBtn.addEventListener('click', deselectObject);
 
@@ -274,6 +326,24 @@ if (editTextSize) {
     if (selectedObject && selectedObject.userData.type === 'text') {
       const val = parseFloat(e.target.value);
       selectedObject.scale.copy(selectedObject.userData.baseScale).multiplyScalar(val);
+    }
+  });
+}
+
+if (editColorPicker) {
+  editColorPicker.addEventListener('input', (e) => {
+    if (!selectedObject) return;
+    const newColor = e.target.value;
+    if (selectedObject.userData.type === 'text') {
+      updateTextSpriteContent(selectedObject, selectedObject.userData.text, newColor);
+    } else if (selectedObject.userData.type === 'arrow') {
+      selectedObject.userData.color = newColor;
+      const threeColor = new THREE.Color(newColor);
+      selectedObject.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.color.set(threeColor);
+        }
+      });
     }
   });
 }
@@ -315,12 +385,17 @@ async function detectFileType(file) {
   return SIGNATURES.isImage(bytes) ? 'image' : SIGNATURES.isVideo(bytes) ? 'video' : 'unknown';
 }
 
-function createTexture(source, mediaType) {
+function createTexture(source, mediaType, signal) {
   let texture;
   if (mediaType === 'image') {
     texture = new THREE.TextureLoader().load(URL.createObjectURL(source));
+    currentVideo = null;
     document.querySelector('.controls-container').classList.add('hidden');
+    textToolControls.classList.remove('hidden');
+    saveImageDiv.classList.remove('hidden')
   } else if (mediaType === 'video') {
+    textToolControls.classList.add('hidden');
+    saveImageDiv.classList.add('hidden')
     const videoUrl = URL.createObjectURL(source);
     const video = document.createElement("video");
     video.src = videoUrl;
@@ -334,7 +409,8 @@ function createTexture(source, mediaType) {
     if (playPauseBtn) playPauseBtn.innerHTML = pauseIcon;
     document.querySelector('.controls-container').classList.remove('hidden');
     texture = new THREE.VideoTexture(video);
-    addVideoControls(video);
+    currentVideo = video;
+    addVideoControls(video, signal);
   } else {
     console.error('未対応のファイル形式が選択されました。');
     return null;
@@ -343,13 +419,19 @@ function createTexture(source, mediaType) {
   return texture;
 }
 
-function addVideoControls(video) {
+function addVideoControls(video, signal) {
   const playPauseBtn = document.getElementById('playPauseBtn');
-  playPauseBtn.addEventListener('click', () => togglePlay(video));
+  playPauseBtn.addEventListener('click', () => togglePlay(video), { signal });
   const rewindBtn = document.getElementById('rewindBtn');
-  rewindBtn.addEventListener('click', () => adjustTime(video, -10));
+  rewindBtn.addEventListener('click', () => adjustTime(video, -10), { signal });
   const forwardBtn = document.getElementById('fastForwardBtn');
-  forwardBtn.addEventListener('click', () => adjustTime(video, 10));
+  forwardBtn.addEventListener('click', () => adjustTime(video, 10), { signal });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      togglePlay(video);
+    }
+  });
 }
 
 function togglePlay(video) {
@@ -413,7 +495,7 @@ function saveEquirectangularImage(mainRenderer, scene) {
   let outputWidth = 4096;
   let outputHeight = 2048;
   scene.traverse((child) => {
-    if (child.isMesh && child.material && child.material.map) {
+    if (child.isMesh && child.material && child.material.map && !child.userData.type) {
       const img = child.material.map.image;
       if (img) {
         const w = img.videoWidth || img.naturalWidth || img.width;
@@ -493,6 +575,13 @@ function saveEquirectangularImage(mainRenderer, scene) {
 }
 
 async function renderScene(file, fileType) {
+  // 前回のrenderSceneで登録したイベントリスナーを一括解除
+  if (sceneAbortController) {
+    sceneAbortController.abort();
+  }
+  sceneAbortController = new AbortController();
+  const sceneSignal = sceneAbortController.signal;
+
   const scene = new THREE.Scene();
   currentScene = scene;
   drawnObjects = [];
@@ -513,7 +602,7 @@ async function renderScene(file, fileType) {
   geometry.scale(-1, 1, 1);
 
   const material = new THREE.MeshBasicMaterial({
-    map: createTexture(file, fileType),
+    map: createTexture(file, fileType, sceneSignal),
     side: THREE.DoubleSide
   });
 
@@ -608,11 +697,12 @@ async function renderScene(file, fileType) {
       arrowStartPoint = point.clone();
 
       // Create arrow preview
+      const previewColor = arrowColorPicker ? new THREE.Color(arrowColorPicker.value) : new THREE.Color(0xff0000);
       arrowPreview = new THREE.ArrowHelper(
         new THREE.Vector3(0, 1, 0),
         arrowStartPoint,
         0.1,
-        0xff0000,
+        previewColor,
         0.02,
         0.02
       );
@@ -671,12 +761,15 @@ async function renderScene(file, fileType) {
           alert('ラベルテキストを入力してください');
           return;
         }
-        const sprite = createTextSprite(text);
+        const textColor = textColorPicker ? textColorPicker.value : "#ffffff";
+        const sprite = createTextSprite(text, 1.0, textColor);
         sprite.position.copy(point).multiplyScalar(0.9);
+        sprite.lookAt(0, 0, 0);
         scene.add(sprite);
         drawnObjects.push(sprite);
       } else if (currentMode === 'arrow' && arrowStartPoint) {
-        const arrowGroup = createArrowMesh(arrowStartPoint, point);
+        const arrowColor = arrowColorPicker ? arrowColorPicker.value : "#ff0000";
+        const arrowGroup = createArrowMesh(arrowStartPoint, point, arrowColor);
         if (arrowGroup) {
           scene.add(arrowGroup);
           drawnObjects.push(arrowGroup);
@@ -693,11 +786,15 @@ async function renderScene(file, fileType) {
         selectObject(clickedObj);
       } else {
         deselectObject();
+        // 動画再生中はクリックで再生/停止を切り替え
+        if (currentVideo) {
+          togglePlay(currentVideo);
+        }
       }
     }
   });
 
-  window.addEventListener("resize", handleResize);
+  window.addEventListener("resize", handleResize, { signal: sceneSignal });
   handleResize();
   tick();
 
@@ -708,18 +805,19 @@ async function renderScene(file, fileType) {
   }
 
   function tick() {
+    if (sceneSignal.aborted) return;
     requestAnimationFrame(tick);
     renderer.render(scene, camera);
     controls.update();
   }
 
-  addEventListener('wheel', event => camera.zoom = event.deltaY * -2);
+  addEventListener('wheel', event => camera.zoom = event.deltaY * -2, { signal: sceneSignal });
   const resetBtn = document.getElementById('controlResetBtn');
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
       controls.reset();
       controlsState = controls.saveState();
-    });
+    }, { signal: sceneSignal });
   }
 
   // -------------------------------------------------------
@@ -729,7 +827,7 @@ async function renderScene(file, fileType) {
   if (saveEquirectBtn) {
     saveEquirectBtn.addEventListener('click', () => {
       saveEquirectangularImage(renderer, scene);
-    });
+    }, { signal: sceneSignal });
   }
 }
 

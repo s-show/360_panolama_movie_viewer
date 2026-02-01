@@ -4,31 +4,50 @@ body {
   position: relative;
 }
 
-#videoControls {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  z-index: 1000;
-  background-color: rgba(0, 0, 0, 0.5);
+#flex-container {
+  display: flex;
+  justify-content: space-between;
+  position: fixed;
+  bottom: 0px;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+#fileSelectorDiv {
+  /* position: fixed; */
+  /* bottom: 20px; */
+  /* left: 20px; */
+  /* z-index: 1000; */
+  background-color: rgba(0, 0, 0, 0.25);
   padding: 10px;
   border-radius: 5px;
 
-  button,
   input {
-    margin-right: 10px;
+    /* margin-right: 10px; */
+    color: rgba(255, 255, 255, 0.75);
+
+    &::file-selector-button {
+      padding: 5px;
+      border-radius: 3px;
+      border: thin;
+    }
   }
 }
 
 #textToolControls {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
-  background-color: rgba(0, 0, 0, 0.5);
+  /* position: absolute; */
+  /* bottom: 20px; */
+  /* left: 400px; */
+  /* z-index: 1000; */
+  background-color: rgba(0, 0, 0, 0.25);
   padding: 10px;
   border-radius: 5px;
   display: flex;
   gap: 10px;
+
+  &.hidden {
+    display: none;
+  }
 
   input {
     padding: 5px;
@@ -42,7 +61,7 @@ body {
     border: none;
     cursor: pointer;
     background-color: #eee;
-    
+
     &:hover {
       background-color: #ddd;
     }
@@ -53,12 +72,22 @@ body {
     background-color: #2563eb;
     color: white;
   }
+
+  input[type="color"] {
+    width: 32px;
+    height: 32px;
+    padding: 2px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    cursor: pointer;
+    background: none;
+  }
 }
 
 #propertyPanel {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
+  bottom: 50px;
+  right: 0px;
   width: 250px;
   background-color: rgba(0, 0, 0, 0.8);
   color: white;
@@ -97,7 +126,7 @@ body {
       color: white;
       border: 1px solid #666;
       border-radius: 4px;
-      
+
       &.active {
         background-color: #2563eb;
         border-color: #2563eb;
@@ -114,7 +143,7 @@ body {
       display: flex;
       flex-direction: column;
       font-size: 12px;
-      
+
       input[type="text"] {
         margin-top: 4px;
         padding: 4px;
@@ -126,11 +155,28 @@ body {
     }
   }
 
+  #editColorLabel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+
+    input[type="color"] {
+      width: 32px;
+      height: 24px;
+      padding: 1px;
+      border: 1px solid #666;
+      border-radius: 3px;
+      cursor: pointer;
+      background: none;
+    }
+  }
+
   .actions {
     display: flex;
     gap: 10px;
     margin-top: 10px;
-    
+
     button {
       flex: 1;
       padding: 6px;
@@ -152,23 +198,63 @@ body {
   }
 }
 
-#buttonBarLeft {
-  position: fixed;
-  bottom: 50px;
-  left: 50px;
+#controlResetDiv {
+  /* position: fixed; */
+  /* bottom: 20px; */
+  /* right: 100px; */
+  /* z-index: 1000; */
+  background-color: rgba(0, 0, 0, 0.25);
+  padding: 10px;
+  border-radius: 5px;
+
+  button {
+    padding: 5px 10px;
+    border-radius: 3px;
+    border: none;
+    cursor: pointer;
+    background-color: #eee;
+  }
 }
 
-/* コントロールボタンコンテナのスタイル */
-.controls-container {
+#saveImageDiv {
+  /* position: fixed; */
+  /* bottom: 20px; */
+  /* right: 100px; */
+  /* z-index: 1000; */
+  background-color: rgba(0, 0, 0, 0.25);
+  padding: 10px;
+  border-radius: 5px;
+
   &.hidden {
     display: none;
   }
 
-  position: fixed;
+  select {
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+  }
+
+  button {
+    padding: 5px 10px;
+    border-radius: 3px;
+    border: none;
+    cursor: pointer;
+    background-color: #eee;
+  }
+}
+
+/* コントロールボタンコンテナのスタイル */
+#videoControls {
+  &.hidden {
+    display: none;
+  }
+
+  /* position: fixed; */
   /* ビューポートに対して固定 */
-  bottom: 20px;
+  /* bottom: 20px; */
   /* 画面下部から20px */
-  left: 50%;
+  /* left: 50%; */
   /* 左端から50% */
   transform: translateX(-50%);
   /* 中央揃え */
@@ -194,7 +280,7 @@ body {
 
 /* 各コントロールボタンの基本スタイル */
 .control-button {
-  padding: 10px;
+  padding: 1px;
   /* アイコンに合わせてパディングを調整し、正方形に近づける */
   background-color: #2563eb;
   /* 青色 */
@@ -202,7 +288,7 @@ body {
   /* 白いテキスト */
   font-weight: 600;
   /* 太字 */
-  border-radius: 30px;
+  border-radius: 5px;
   /* 角を丸くする */
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   /* 影を追加 */
