@@ -91,3 +91,97 @@ export function createArrowMesh(start, end, color = "#ff0000") {
 
   return arrowGroup;
 }
+
+
+export function createPolygonMesh(vertices, color = "#00ff00", opacity = 0.5) {
+  if (vertices.length < 3) return null;
+
+  // 重心を計算（グループの原点として使用）
+  const center = new THREE.Vector3();
+  vertices.forEach(v => center.add(v));
+  center.divideScalar(vertices.length);
+
+  // 頂点を重心からの相対座標に変換
+  const localVertices = vertices.map(v => v.clone().sub(center));
+
+  // 三角形分割（fan triangulation）
+  const positions = [];
+  for (let i = 1; i < localVertices.length - 1; i++) {
+    positions.push(
+      localVertices[0].x, localVertices[0].y, localVertices[0].z,
+      localVertices[i].x, localVertices[i].y, localVertices[i].z,
+      localVertices[i + 1].x, localVertices[i + 1].y, localVertices[i + 1].z
+    );
+  }
+
+  // 面のジオメトリ
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+
+  const threeColor = new THREE.Color(color);
+  const material = new THREE.MeshBasicMaterial({
+    color: threeColor,
+    transparent: true,
+    opacity: opacity,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 0;
+
+  // 輪郭線
+  const linePositions = [];
+  localVertices.forEach(v => linePositions.push(v.x, v.y, v.z));
+  // 閉じるために最初の頂点を追加
+  linePositions.push(localVertices[0].x, localVertices[0].y, localVertices[0].z);
+
+  const lineGeometry = new THREE.BufferGeometry();
+  lineGeometry.setAttribute("position", new THREE.Float32BufferAttribute(linePositions, 3));
+
+  const lineMaterial = new THREE.LineBasicMaterial({
+    color: threeColor,
+    linewidth: 2
+  });
+
+  const outline = new THREE.Line(lineGeometry, lineMaterial);
+  outline.frustumCulled = false;
+  outline.renderOrder = 1;
+
+  // グループ化
+  const polygonGroup = new THREE.Group();
+  polygonGroup.add(mesh);
+  polygonGroup.add(outline);
+  polygonGroup.position.copy(center);
+  polygonGroup.frustumCulled = false;
+
+  polygonGroup.userData = {
+    type: "polygon",
+    color: color,
+    opacity: opacity,
+    vertexCount: vertices.length
+  };
+
+  return polygonGroup;
+}
+
+export function updatePolygonProperties(polygonGroup, color, opacity) {
+  if (polygonGroup.userData.type !== "polygon") return;
+
+  const threeColor = new THREE.Color(color);
+
+  polygonGroup.traverse((child) => {
+    if (child.isMesh && child.material) {
+      child.material.color.set(threeColor);
+      child.material.opacity = opacity;
+    }
+    if (child.isLine && child.material) {
+      child.material.color.set(threeColor);
+    }
+  });
+
+  polygonGroup.userData.color = color;
+  polygonGroup.userData.opacity = opacity;
+}

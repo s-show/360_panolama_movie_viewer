@@ -1,6 +1,6 @@
 import "./style.scss";
 import * as THREE from "three";
-import { createTextSprite, createArrowMesh } from "./annotations/annotationFactory.js";
+import { createTextSprite, createArrowMesh, createPolygonMesh } from "./annotations/annotationFactory.js";
 import * as annotationStore from "./annotations/annotationStore.js";
 import { detectFileType } from "./media/mediaDetector.js";
 import { createTexture } from "./media/mediaLoader.js";
@@ -17,6 +17,8 @@ let viewer = null;
 // UI で使用する DOM 要素
 const textColorPicker = document.getElementById("textColorPicker");
 const arrowColorPicker = document.getElementById("arrowColorPicker");
+const polygonColorPicker = document.getElementById("polygonColorPicker");
+const polygonOpacitySlider = document.getElementById("polygonOpacitySlider");
 
 // ---------------------------------------------------------
 // Scene Rendering
@@ -24,6 +26,7 @@ const arrowColorPicker = document.getElementById("arrowColorPicker");
 
 async function renderScene(file, fileType) {
   annotationStore.reset();
+  editorState.clearPolygonVertices();
   setMode("none");
   deselectObject();
 
@@ -58,6 +61,10 @@ async function renderScene(file, fileType) {
   let mouseDownPos = new THREE.Vector2();
   let arrowPreview = null;
 
+  // 多角形描画用のプレビュー
+  let polygonPreviewLine = null;      // マウス追従線
+  let polygonConfirmedLines = [];     // 確定済み辺の線
+
   element.addEventListener("mousedown", (event) => {
     mouseDownPos.set(event.clientX, event.clientY);
 
@@ -89,22 +96,69 @@ async function renderScene(file, fileType) {
   });
 
   element.addEventListener("mousemove", (event) => {
-    if (editorState.currentMode !== "arrow" || !editorState.arrowStartPoint || !arrowPreview) return;
-
-    const point = viewer.getIntersectPoint(event);
-    if (!point) return;
-
-    const direction = new THREE.Vector3().subVectors(point, editorState.arrowStartPoint);
-    const length = direction.length();
-    if (length < 0.1) {
-      arrowPreview.visible = false;
-      return;
+    // 多角形モードでなくなったらプレビュー線をクリア
+    if (editorState.currentMode !== "polygon") {
+      if (polygonPreviewLine) {
+        viewer.removeObject(polygonPreviewLine);
+        polygonPreviewLine.geometry.dispose();
+        polygonPreviewLine.material.dispose();
+        polygonPreviewLine = null;
+      }
+      if (polygonConfirmedLines.length > 0) {
+        polygonConfirmedLines.forEach(line => {
+          viewer.removeObject(line);
+          line.geometry.dispose();
+          line.material.dispose();
+        });
+        polygonConfirmedLines = [];
+      }
     }
 
-    arrowPreview.visible = true;
-    arrowPreview.position.copy(editorState.arrowStartPoint);
-    arrowPreview.setDirection(direction.normalize());
-    arrowPreview.setLength(length, length * 0.2, Math.max(0.2, length * 0.05));
+    // 矢印モードのプレビュー
+    if (editorState.currentMode === "arrow" && editorState.arrowStartPoint && arrowPreview) {
+      const point = viewer.getIntersectPoint(event);
+      if (!point) return;
+
+      const direction = new THREE.Vector3().subVectors(point, editorState.arrowStartPoint);
+      const length = direction.length();
+      if (length < 0.1) {
+        arrowPreview.visible = false;
+        return;
+      }
+
+      arrowPreview.visible = true;
+      arrowPreview.position.copy(editorState.arrowStartPoint);
+      arrowPreview.setDirection(direction.normalize());
+      arrowPreview.setLength(length, length * 0.2, Math.max(0.2, length * 0.05));
+    }
+
+    // 多角形モードのプレビュー（マウス追従線）
+    if (editorState.currentMode === "polygon" && editorState.getPolygonVertices().length > 0) {
+      const point = viewer.getIntersectPoint(event);
+      if (!point) return;
+
+      const vertices = editorState.getPolygonVertices();
+      const lastVertex = vertices[vertices.length - 1];
+
+      // 既存のプレビュー線を削除
+      if (polygonPreviewLine) {
+        viewer.removeObject(polygonPreviewLine);
+        polygonPreviewLine.geometry.dispose();
+        polygonPreviewLine.material.dispose();
+        polygonPreviewLine = null;
+      }
+
+      // 新しいプレビュー線を作成
+      const polygonColor = polygonColorPicker ? polygonColorPicker.value : "#00ff00";
+      const lineGeometry = new THREE.BufferGeometry().setFromPoints([lastVertex, point]);
+      const lineMaterial = new THREE.LineBasicMaterial({
+        color: new THREE.Color(polygonColor),
+        linewidth: 2
+      });
+      polygonPreviewLine = new THREE.Line(lineGeometry, lineMaterial);
+      polygonPreviewLine.frustumCulled = false;
+      viewer.addObject(polygonPreviewLine);
+    }
   });
 
   element.addEventListener("mouseup", (event) => {
@@ -150,6 +204,27 @@ async function renderScene(file, fileType) {
           annotationStore.add(arrowGroup);
         }
         editorState.setArrowStartPoint(null);
+      } else if (editorState.currentMode === "polygon" && isClick) {
+        // 頂点を追加
+        editorState.addPolygonVertex(point);
+        const vertices = editorState.getPolygonVertices();
+
+        // 2つ以上の頂点があれば確定済み辺を描画
+        if (vertices.length >= 2) {
+          const polygonColor = polygonColorPicker ? polygonColorPicker.value : "#00ff00";
+          const prevVertex = vertices[vertices.length - 2];
+          const currentVertex = vertices[vertices.length - 1];
+
+          const lineGeometry = new THREE.BufferGeometry().setFromPoints([prevVertex, currentVertex]);
+          const lineMaterial = new THREE.LineBasicMaterial({
+            color: new THREE.Color(polygonColor),
+            linewidth: 2
+          });
+          const line = new THREE.Line(lineGeometry, lineMaterial);
+          line.frustumCulled = false;
+          viewer.addObject(line);
+          polygonConfirmedLines.push(line);
+        }
       }
       return;
     }
@@ -167,6 +242,46 @@ async function renderScene(file, fileType) {
         }
       }
     }
+  });
+
+  // ダブルクリックで多角形を確定
+  element.addEventListener("dblclick", (event) => {
+    if (editorState.currentMode !== "polygon") return;
+
+    const vertices = editorState.getPolygonVertices();
+    if (vertices.length < 3) {
+      alert("多角形を作成するには3つ以上の頂点が必要です");
+      return;
+    }
+
+    // プレビュー線を削除
+    if (polygonPreviewLine) {
+      viewer.removeObject(polygonPreviewLine);
+      polygonPreviewLine.geometry.dispose();
+      polygonPreviewLine.material.dispose();
+      polygonPreviewLine = null;
+    }
+
+    // 確定済み辺の線を削除
+    polygonConfirmedLines.forEach(line => {
+      viewer.removeObject(line);
+      line.geometry.dispose();
+      line.material.dispose();
+    });
+    polygonConfirmedLines = [];
+
+    // 多角形メッシュを作成
+    const polygonColor = polygonColorPicker ? polygonColorPicker.value : "#00ff00";
+    const polygonOpacity = polygonOpacitySlider ? parseFloat(polygonOpacitySlider.value) : 0.5;
+    const polygonMesh = createPolygonMesh(vertices, polygonColor, polygonOpacity);
+
+    if (polygonMesh) {
+      viewer.addObject(polygonMesh);
+      annotationStore.add(polygonMesh);
+    }
+
+    // 頂点リストをクリア
+    editorState.clearPolygonVertices();
   });
 
   // -------------------------------------------------------

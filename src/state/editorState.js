@@ -20,3 +20,19 @@ export function setDraggingGizmo(value) {
 export function setArrowStartPoint(point) {
   arrowStartPoint = point;
 }
+
+
+// 多角形描画用の状態
+export let polygonVertices = [];
+
+export function addPolygonVertex(point) {
+  polygonVertices.push(point.clone());
+}
+
+export function getPolygonVertices() {
+  return polygonVertices;
+}
+
+export function clearPolygonVertices() {
+  polygonVertices = [];
+}
