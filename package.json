@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "eslint": "^8.57.1",
     "vite": "^6.3.5",
     "vite-plugin-singlefile": "^2.2.0"
   },
