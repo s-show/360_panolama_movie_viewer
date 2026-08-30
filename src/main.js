@@ -245,7 +245,7 @@ async function renderScene(file, fileType) {
   });
 
   // ダブルクリックで多角形を確定
-  element.addEventListener("dblclick", (event) => {
+  element.addEventListener("dblclick", () => {
     if (editorState.currentMode !== "polygon") return;
 
     const vertices = editorState.getPolygonVertices();
@@ -293,6 +293,24 @@ async function renderScene(file, fileType) {
       saveEquirectangularImage(viewer.renderer, viewer.scene, viewer.transformControl);
     }, { signal: sceneSignal });
   }
+}
+
+// ---------------------------------------------------------
+// E2E テスト用の読取専用フック
+// 表示状態のみを公開する。本番ビルドでは ?e2e を付けたときだけ有効。
+// ---------------------------------------------------------
+
+if (import.meta.env.MODE !== "production" || location.search.includes("e2e")) {
+  window.__viewer = {
+    get camera() { return viewer ? viewer.camera : null; },
+    get controls() { return viewer ? viewer.controls : null; },
+    get scene() { return viewer ? viewer.scene : null; },
+    get transformControl() { return viewer ? viewer.transformControl : null; },
+    get annotations() { return annotationStore.getAll(); },
+    get video() { return mediaState.get(); },
+    get mode() { return editorState.currentMode; },
+    get selected() { return editorState.selectedObject; }
+  };
 }
 
 // ---------------------------------------------------------
