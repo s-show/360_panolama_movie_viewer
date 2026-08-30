@@ -6,12 +6,18 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint src tests *.js --ext .js,.mjs",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
     "eslint": "^8.57.1",
+    "pngjs": "^7.0.0",
     "vite": "^8.0.16",
-    "vite-plugin-singlefile": "^2.3.3"
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "sass-embedded": "^1.89.1",

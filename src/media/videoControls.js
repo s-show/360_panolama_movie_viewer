@@ -12,12 +12,13 @@ export function addVideoControls(video, signal) {
   document.addEventListener("keydown", (e) => {
     if (e.code === "Space") {
       togglePlay(video);
+      e.target.blur();
     } else if (e.code === "ArrowLeft") {
       adjustTime(video, -10);
     } else if (e.code === "ArrowRight") {
       adjustTime(video, 10);
     }
-  });
+  }, { signal });
 }
 
 export function togglePlay(video) {

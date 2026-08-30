@@ -29,3 +29,12 @@ refactoring_plan.md
 gemini_research.md
 investigation-gizmo-not-displayed.md
 
+
+# テスト成果物
+test-results
+playwright-report
+.playwright
+
+# 手動確認用のサンプル（大きすぎて Git に入れられない）
+equirectangular_image_sample.jpg
+equirectangular_movie_sample.MP4
