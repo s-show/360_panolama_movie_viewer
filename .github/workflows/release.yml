@@ -19,7 +19,7 @@ jobs:
           version: 10
 
       # flake.nix の devShell および ci.yml と揃えること
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
