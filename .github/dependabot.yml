@@ -1,0 +1,45 @@
+version: 2
+
+updates:
+  # このリポジトリの依存は npm ecosystem（pnpm-lock.yaml）と GitHub Actions だけ。
+  # Docker も他言語のパッケージも使っていないので、他の ecosystem は設定しない。
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    groups:
+      # minor / patch はまとめて 1 PR にして、レビュー対象の PR 数を抑える。
+      # major はこのグループに入らないので個別 PR になる。
+      # three / vite / vitest のような major 更新は挙動が変わりやすく、
+      # CI 成功だけでは互換性を保証できないため、必ず単独で確認する。
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # @playwright/test は nixpkgs#playwright-driver と完全に一致させる必要がある
+      # （ブラウザのリビジョンディレクトリ名が揃わないと Nix 環境で E2E が動かない）。
+      # 自動更新させず、`nix eval --raw nixpkgs#playwright-driver.version` を確認して手動で上げる。
+      - dependency-name: "@playwright/test"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 3
+    groups:
+      github-actions-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
